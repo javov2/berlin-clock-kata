@@ -27,6 +27,13 @@ public class BerlinClockTest {
         assertEquals(result, time);
     }
 
+    @ParameterizedTest(name = " {index} ==> Time ''{0}''")
+    @ValueSource(strings = { "00", "assdas", "1asds1", "", "12;35;0" })
+    void checkValidateFormatWithIncorrectFormats(String time) {
+        assertThrows(AssertionError.class,
+                () -> underTest.validateFormat(time).subscribe().asCompletionStage().join());
+    }
+
     @DisplayName("Berlin Clock Tests")
     @ParameterizedTest(name = "{index} ==> Time ''{0}'' Row {1}")
     @CsvSource({ "00:00:00, OOOO", "23:59:59, YYYY", "12:32:00, YYOO", "12:34:00,YYYY","12:35:00, OOOO" })
