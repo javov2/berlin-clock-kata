@@ -32,7 +32,7 @@ public class BerlinClockTest {
     @CsvSource({ "00:00:00, OOOO", "23:59:59, YYYY", "12:32:00, YYOO", "12:34:00,YYYY","12:35:00, OOOO" })
     public void checkSingleMinutesRow(String time, String row){
         String result = underTest.calculateSingleMinutesRow(time);
-        assertEquals(time, result);
+        assertEquals(row, result);
     }
 
 }

@@ -20,7 +20,7 @@ public class BerlinClock {
     }
 
     public String calculateSingleMinutesRow(String time){
-        return "0000";
+        return "OOOO";
     }
 
     public Uni<String> validateFormat(String digitalTime){
