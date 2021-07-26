@@ -7,10 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 public class BerlinClockTest {
 
@@ -20,8 +24,9 @@ public class BerlinClockTest {
 
     @BeforeEach
     void setUp() {
-
-        underTest = new BerlinClock();
+        berlinClockUtils = Mockito.mock(BerlinClockUtils.class);
+        berlinClockView = Mockito.mock(BerlinClockView.class);
+        underTest = new BerlinClock(berlinClockUtils, berlinClockView);
     }
 
     @ParameterizedTest(name = " {index} ==> Time ''{0}''")
@@ -47,6 +52,7 @@ public class BerlinClockTest {
     @ParameterizedTest(name = "{index} ==> Time ''{0}'' Row {1}")
     @CsvSource({"00:00:00, OOOO", "23:59:59, YYYY", "12:32:00, YYOO", "12:34:00,YYYY", "12:35:00, OOOO"})
     public void checkSingleMinutesRow(String time, String row) {
+        when(berlinClockView.generateSingleMinutesRowPattern(anyInt(), anyInt())).thenReturn(row);
         String result = underTest.calculateSingleMinutesRow(time).await().indefinitely();
         assertEquals(row, result);
     }
@@ -58,6 +64,7 @@ public class BerlinClockTest {
             "12:23:00, YYRYOOOOOOO",
             "12:35:00, YYRYYRYOOOO"})
     public void checkFiveMinutesRow(String time, String row) {
+        when(berlinClockView.generateFiveMinutesRowPattern(anyInt(), anyInt())).thenReturn(row);
         String result = underTest.calculateFiveMinutesRow(time).await().indefinitely();
         assertEquals(row, result);
     }
@@ -69,6 +76,7 @@ public class BerlinClockTest {
             "08:23:00, RRRO",
             "14:35:00, RRRR"})
     public void checkSingleHoursRow(String time, String row) {
+        when(berlinClockView.generateSingleHoursRowPattern(anyInt(), anyInt())).thenReturn(row);
         String result = underTest.calculateSingleHoursRow(time).await().indefinitely();
         assertEquals(row, result);
     }
@@ -80,6 +88,7 @@ public class BerlinClockTest {
             "08:23:00, ROOO",
             "16:35:00, RRRO"})
     public void checkFiveHoursRow(String time, String row) {
+        when(berlinClockView.generateFiveHoursRowPattern(anyInt(), anyInt())).thenReturn(row);
         String result = underTest.calculateFiveHoursRow(time).await().indefinitely();
         assertEquals(row, result);
     }
@@ -88,16 +97,22 @@ public class BerlinClockTest {
     @CsvSource({"00:00:00, Y",
             "23:59:59, O",})
     public void checkSecondsRow(String time, String row) {
+        when(berlinClockView.generateSecondsRowPattern(anyString())).thenReturn(row);
         String result = underTest.calculateSecondsRow(time).await().indefinitely();
         assertEquals(row, result);
     }
 
-    @ParameterizedTest(name = "{index} ==> Time ''{0}'' Row {1}")
-    @CsvSource({"00:00:00, YOOOOOOOOOOOOOOOOOOOOOOO",
-            "23:59:59, ORRRRRRROYYRYYRYYRYYYYYY",
-            "16:50:06, YRRROROOOYYRYYRYYRYOOOOO",
-            "11:37:01, ORROOROOOYYRYYRYOOOOYYOO",})
-    public void checkEntireBerlinClock(String time, String row) {
+    @ParameterizedTest(name = "{index} ==> Time ''{0}'' Row {6}")
+    @CsvSource({"00:00:00, Y, OOOO, OOOO, OOOOOOOOOOO, OOOO, YOOOOOOOOOOOOOOOOOOOOOOO",
+            "23:59:59, O, RRRR, RRRO, YYRYYRYYRYY, YYYY, ORRRRRRROYYRYYRYYRYYYYYY",
+            "16:50:06, Y, RRRO, ROOO, YYRYYRYYRYO, OOOO, YRRROROOOYYRYYRYYRYOOOOO",
+            "11:37:01, O, RROO, ROOO, YYRYYRYOOOO, YYOO, ORROOROOOYYRYYRYOOOOYYOO",})
+    public void checkEntireBerlinClock(String time, String seconds, String fiveHours, String singleHour, String fiveMinutes, String singleMinute, String row ) {
+        when(berlinClockView.generateSecondsRowPattern(anyString())).thenReturn(seconds);
+        when(berlinClockView.generateFiveHoursRowPattern(anyInt(), anyInt())).thenReturn(fiveHours);
+        when(berlinClockView.generateSingleHoursRowPattern(anyInt(), anyInt())).thenReturn(singleHour);
+        when(berlinClockView.generateFiveMinutesRowPattern(anyInt(), anyInt())).thenReturn(fiveMinutes);
+        when(berlinClockView.generateSingleMinutesRowPattern(anyInt(), anyInt())).thenReturn(singleMinute);
         String result = underTest.convertDigitalTimeToBerlinTime(time).await().indefinitely();
         assertEquals(row, result);
     }
