@@ -1,5 +1,6 @@
 package org.javo.berlinclock;
 
+import org.javo.berlinclock.utils.BerlinClockUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,9 +15,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BerlinClockTest {
 
     private BerlinClock underTest;
+    private BerlinClockView berlinClockView;
+    private BerlinClockUtils berlinClockUtils;
 
     @BeforeEach
     void setUp() {
+
         underTest = new BerlinClock();
     }
 

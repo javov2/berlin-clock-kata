@@ -2,16 +2,22 @@ package org.javo.berlinclock;
 
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.javo.berlinclock.utils.BerlinClockUtils;
 
 import javax.enterprise.context.ApplicationScoped;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@ApplicationScoped
+
 @Slf4j
+@ApplicationScoped
+@RequiredArgsConstructor
 public class BerlinClock {
 
+    private final BerlinClockUtils berlinClockUtils;
+    private final BerlinClockView berlinClockView;
 
     public Uni<String> convertDigitalTimeToBerlinTime(String digitalTime) {
         return Uni.createFrom().item(() -> digitalTime)
@@ -38,107 +44,30 @@ public class BerlinClock {
     public Uni<String> calculateSingleMinutesRow(String digitalTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 2))
                 .onItem().transform(this::computeNumberOfLampsInSingleMinutesRow)
-                .onItem().transform(number -> generateSingleMinutesRowPattern(number, 4));
+                .onItem().transform(number -> berlinClockView.generateSingleMinutesRowPattern(number, 4));
     }
 
     public Uni<String> calculateFiveMinutesRow(String digitalTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 2))
                 .onItem().transform(this::computeNumberOfLampsInFiveMinutesRow)
-                .onItem().transform(number -> generateFiveMinutesRowPattern(number, 11));
+                .onItem().transform(number -> berlinClockView.generateFiveMinutesRowPattern(number, 11));
     }
 
     public Uni<String> calculateSingleHoursRow(String digitalTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 1))
                 .onItem().transform(this::computeNumberOfLampsInSingleHoursRow)
-                .onItem().transform(number -> generateSingleHoursRowPattern(number, 4));
+                .onItem().transform(number -> berlinClockView.generateSingleHoursRowPattern(number, 4));
     }
 
     public Uni<String> calculateFiveHoursRow(String digitalTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 1))
                 .onItem().transform(this::computeNumberOfLampsInFiveHoursRow)
-                .onItem().transform(number -> generateFiveHoursRowPattern(number, 4));
+                .onItem().transform(number -> berlinClockView.generateFiveHoursRowPattern(number, 4));
     }
 
     public Uni<String> calculateSecondsRow(String digitalTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 3))
-                .onItem().transform(this::generateSecondsRowPattern);
-    }
-
-
-    private Integer computeNumberOfLampsInSingleMinutesRow(String timeSegment) {
-        return calculateModule(convertTimeSegmentToInteger(timeSegment), 5);
-    }
-
-    private Integer computeNumberOfLampsInFiveMinutesRow(String timeSegment) {
-        return calculateQuotient(convertTimeSegmentToInteger(timeSegment), 5);
-    }
-
-    private Integer computeNumberOfLampsInSingleHoursRow(String timeSegment) {
-        return calculateModule(convertTimeSegmentToInteger(timeSegment), 5);
-    }
-
-    private Integer computeNumberOfLampsInFiveHoursRow(String timeSegment) {
-        return calculateQuotient(convertTimeSegmentToInteger(timeSegment), 5);
-    }
-
-    private String generateSingleMinutesRowPattern(int numberOfY, int rowLength) {
-        return yCharGenerator(numberOfY) + oCharGenerator(rowLength - numberOfY);
-    }
-
-    private String generateFiveMinutesRowPattern(int numberOfY, int rowLength) {
-        String partialResult = yCharGenerator(numberOfY);
-        return replaceYCharsForRChars(partialResult, 3, 2) + oCharGenerator(rowLength - numberOfY);
-    }
-
-    private String generateSingleHoursRowPattern(int numberOfR, int rowLength) {
-        return rCharGenerator(numberOfR) + oCharGenerator(rowLength - numberOfR);
-    }
-
-    private String generateFiveHoursRowPattern(int numberOfR, int rowLength) {
-        return rCharGenerator(numberOfR) + oCharGenerator(rowLength - numberOfR);
-    }
-
-    private String generateSecondsRowPattern(String digitalTime) {
-        String result;
-        if (convertTimeSegmentToInteger(digitalTime) % 2 == 0)
-            result = yCharGenerator(1);
-        else
-            result = oCharGenerator(1);
-        return result;
-    }
-
-    private String replaceYCharsForRChars(String partialResult, Integer positionMultiplier, Integer positionOffset) {
-        char[] yCharArray = partialResult.toCharArray();
-        int numberOfYChars = partialResult.length() / 3;
-        char[] rCharArray = rCharGenerator(numberOfYChars).toCharArray();
-        for (int rCharCounter = 0; rCharCounter < rCharArray.length; rCharCounter++) {
-            yCharArray[(rCharCounter * positionMultiplier) + positionOffset] = rCharArray[rCharCounter];
-        }
-        return String.valueOf(yCharArray);
-    }
-
-    private String oCharGenerator(int numberOfcharsO) {
-        StringBuilder stringBuilder = new StringBuilder(numberOfcharsO);
-        for (int charOCounter = 0; charOCounter < numberOfcharsO; charOCounter++) {
-            stringBuilder.insert(charOCounter, "O");
-        }
-        return stringBuilder.toString();
-    }
-
-    private String yCharGenerator(int numberOfcharsY) {
-        StringBuilder stringBuilder = new StringBuilder(numberOfcharsY);
-        for (int charOCounter = 0; charOCounter < numberOfcharsY; charOCounter++) {
-            stringBuilder.insert(charOCounter, "Y");
-        }
-        return stringBuilder.toString();
-    }
-
-    private String rCharGenerator(int numberOfcharsR) {
-        StringBuilder stringBuilder = new StringBuilder(numberOfcharsR);
-        for (int charOCounter = 0; charOCounter < numberOfcharsR; charOCounter++) {
-            stringBuilder.insert(charOCounter, "R");
-        }
-        return stringBuilder.toString();
+                .onItem().transform(berlinClockView::generateSecondsRowPattern);
     }
 
     private String splitDigitalTime(String digitalTime, int segment) {
@@ -153,16 +82,20 @@ public class BerlinClock {
             throw new AssertionError("The format is not valid");
     }
 
-    private Integer convertTimeSegmentToInteger(String timeSegment) {
-        return Integer.parseInt(timeSegment);
+    private Integer computeNumberOfLampsInSingleMinutesRow(String timeSegment) {
+        return berlinClockUtils.calculateModule(berlinClockUtils.convertTimeSegmentToInteger(timeSegment), 5);
     }
 
-    private Integer calculateModule(int dividend, int divisor) {
-        return dividend % divisor;
+    private Integer computeNumberOfLampsInFiveMinutesRow(String timeSegment) {
+        return berlinClockUtils.calculateQuotient(berlinClockUtils.convertTimeSegmentToInteger(timeSegment), 5);
     }
 
-    private Integer calculateQuotient(int dividend, int divisor) {
-        return dividend / divisor;
+    private Integer computeNumberOfLampsInSingleHoursRow(String timeSegment) {
+        return berlinClockUtils.calculateModule(berlinClockUtils.convertTimeSegmentToInteger(timeSegment), 5);
+    }
+
+    private Integer computeNumberOfLampsInFiveHoursRow(String timeSegment) {
+        return berlinClockUtils.calculateQuotient(berlinClockUtils.convertTimeSegmentToInteger(timeSegment), 5);
     }
 
 }
