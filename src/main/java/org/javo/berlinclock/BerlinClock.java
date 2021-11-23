@@ -14,20 +14,30 @@ public class BerlinClock {
 
 
     public Uni<String> convertDigitalTimeToBerlinTime(String digitalTime) {
-        return Uni.createFrom().item(() -> digitalTime)
-                .onItem().invoke(this::validateFormat)
-                .onItem().transform(s -> calculateSecondsRow(s).await().indefinitely() +
+        return Uni.createFrom().item(() -> BerlinTime.builder()
+                    .digitalTime(digitalTime)
+                    .convertedDigitalTime("")
+                    .build())
+                .onItem().transformToUni(this::validateFormat)
+                .onItem().transformToUni(this::calculateSecondsRow)
+                .onItem().transformToUni(this::calculateFiveHoursRow)
+                .onItem().transformToUni(this::calculateSingleHoursRow)
+                .onItem().transformToUni(this::calculateFiveMinutesRow)
+                .onItem().transformToUni(this::calculateSingleMinutesRow)
+                .onItem().transform(BerlinTime::getConvertedDigitalTime);
+
+/*                .onItem().transform(s -> calculateSecondsRow(s).await().indefinitely() +
                         calculateFiveHoursRow(s).await().indefinitely() +
                         calculateSingleHoursRow(s).await().indefinitely() +
                         calculateFiveMinutesRow(s).await().indefinitely() +
                         calculateSingleMinutesRow(s).await().indefinitely()
-                );
+                );*/
     }
 
-    public Uni<String> validateFormat(String digitalTime) {
-        return Uni.createFrom().item(digitalTime)
+    public Uni<BerlinTime> validateFormat(BerlinTime berlinTime) {
+        return Uni.createFrom().item(berlinTime)
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .onItem().invoke(this::verifyDigitalTimeRegex)
+                .onItem().transform(this::verifyDigitalTimeRegex)
                 .onFailure(AssertionError.class).transform(
                         t -> new IllegalArgumentException(t.getMessage()))
                 .onFailure(NullPointerException.class).transform(
@@ -35,33 +45,49 @@ public class BerlinClock {
 
     }
 
-    public Uni<String> calculateSingleMinutesRow(String digitalTime) {
-        return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 2))
+    public Uni<BerlinTime> calculateSingleMinutesRow(BerlinTime berlinTime) {
+        return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 2))
                 .onItem().transform(this::computeNumberOfLampsInSingleMinutesRow)
-                .onItem().transform(number -> generateSingleMinutesRowPattern(number, 4));
+                .onItem().transform(number -> generateSingleMinutesRowPattern(number, 4))
+                .onItem().transform(s -> berlinTime.toBuilder()
+                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
+                        .build());
     }
 
-    public Uni<String> calculateFiveMinutesRow(String digitalTime) {
-        return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 2))
+    public Uni<BerlinTime> calculateFiveMinutesRow(BerlinTime berlinTime) {
+        return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 2))
                 .onItem().transform(this::computeNumberOfLampsInFiveMinutesRow)
-                .onItem().transform(number -> generateFiveMinutesRowPattern(number, 11));
+                .onItem().transform(number -> generateFiveMinutesRowPattern(number, 11))
+                .onItem().transform(s -> berlinTime.toBuilder()
+                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
+                        .build());
     }
 
-    public Uni<String> calculateSingleHoursRow(String digitalTime) {
-        return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 1))
+    public Uni<BerlinTime> calculateSingleHoursRow(BerlinTime berlinTime) {
+        return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 1))
                 .onItem().transform(this::computeNumberOfLampsInSingleHoursRow)
-                .onItem().transform(number -> generateSingleHoursRowPattern(number, 4));
+                .onItem().transform(number -> generateSingleHoursRowPattern(number, 4))
+                .onItem().transform(s -> berlinTime.toBuilder()
+                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
+                        .build());
+
     }
 
-    public Uni<String> calculateFiveHoursRow(String digitalTime) {
-        return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 1))
+    public Uni<BerlinTime> calculateFiveHoursRow(BerlinTime berlinTime) {
+        return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 1))
                 .onItem().transform(this::computeNumberOfLampsInFiveHoursRow)
-                .onItem().transform(number -> generateFiveHoursRowPattern(number, 4));
+                .onItem().transform(number -> generateFiveHoursRowPattern(number, 4))
+                .onItem().transform(s -> berlinTime.toBuilder()
+                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
+                        .build());
     }
 
-    public Uni<String> calculateSecondsRow(String digitalTime) {
-        return Uni.createFrom().item(() -> splitDigitalTime(digitalTime, 3))
-                .onItem().transform(this::generateSecondsRowPattern);
+    public Uni<BerlinTime> calculateSecondsRow(BerlinTime berlinTime) {
+        return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 3))
+                .onItem().transform(this::generateSecondsRowPattern)
+                .onItem().transform(s -> berlinTime.toBuilder()
+                        .convertedDigitalTime(s)
+                        .build());
     }
 
 
@@ -145,12 +171,13 @@ public class BerlinClock {
         return digitalTime.split(":")[segment - 1];
     }
 
-    private void verifyDigitalTimeRegex(String digitalTime) {
+    private BerlinTime verifyDigitalTimeRegex(BerlinTime berlinTime) {
         String DIGITAL_TIME_REGEX = "([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]";
         Pattern pattern = Pattern.compile(DIGITAL_TIME_REGEX);
-        Matcher matcher = pattern.matcher(digitalTime);
+        Matcher matcher = pattern.matcher(berlinTime.getDigitalTime());
         if (!matcher.matches())
             throw new AssertionError("The format is not valid");
+        return berlinTime;
     }
 
     private Integer convertTimeSegmentToInteger(String timeSegment) {
