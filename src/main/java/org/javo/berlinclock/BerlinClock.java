@@ -14,24 +14,36 @@ public class BerlinClock {
 
 
     public Uni<String> convertDigitalTimeToBerlinTime(String digitalTime) {
-        return Uni.createFrom().item(() -> BerlinTime.builder()
-                    .digitalTime(digitalTime)
-                    .convertedDigitalTime("")
-                    .build())
+        return Uni.createFrom().item(() -> initializeBerlinTime(digitalTime) )
                 .onItem().transformToUni(this::validateFormat)
-                .onItem().transformToUni(this::calculateSecondsRow)
-                .onItem().transformToUni(this::calculateFiveHoursRow)
-                .onItem().transformToUni(this::calculateSingleHoursRow)
-                .onItem().transformToUni(this::calculateFiveMinutesRow)
-                .onItem().transformToUni(this::calculateSingleMinutesRow)
+                .onItem().transformToUni(this::calculateBerlinTime)
                 .onItem().transform(BerlinTime::getConvertedDigitalTime);
+    }
 
-/*                .onItem().transform(s -> calculateSecondsRow(s).await().indefinitely() +
-                        calculateFiveHoursRow(s).await().indefinitely() +
-                        calculateSingleHoursRow(s).await().indefinitely() +
-                        calculateFiveMinutesRow(s).await().indefinitely() +
-                        calculateSingleMinutesRow(s).await().indefinitely()
-                );*/
+    private BerlinTime initializeBerlinTime(String digitalTimeToConvert){
+        return BerlinTime.builder()
+                .digitalTime(digitalTimeToConvert)
+                .convertedDigitalTime("")
+                .build();
+    }
+
+    private Uni<BerlinTime> calculateBerlinTime(BerlinTime berlinTime) {
+        return Uni.createFrom().item(() -> berlinTime)
+                .onItem().transformToUni(this::calculateSecondsRow)
+                .onItem().transformToUni(this::calculateHoursRows)
+                .onItem().transformToUni(this::calculateMinutesRows);
+    }
+
+    private Uni<BerlinTime> calculateHoursRows(BerlinTime berlinTime){
+        return Uni.createFrom().item(()->berlinTime)
+                .onItem().transformToUni(this::calculateFiveHoursRow)
+                .onItem().transformToUni(this::calculateSingleHoursRow);
+    }
+
+    private Uni<BerlinTime> calculateMinutesRows(BerlinTime berlinTime){
+        return Uni.createFrom().item(()->berlinTime)
+                .onItem().transformToUni(this::calculateFiveMinutesRow)
+                .onItem().transformToUni(this::calculateSingleMinutesRow);
     }
 
     public Uni<BerlinTime> validateFormat(BerlinTime berlinTime) {
@@ -49,27 +61,21 @@ public class BerlinClock {
         return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 2))
                 .onItem().transform(this::computeNumberOfLampsInSingleMinutesRow)
                 .onItem().transform(number -> generateSingleMinutesRowPattern(number, 4))
-                .onItem().transform(s -> berlinTime.toBuilder()
-                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
-                        .build());
+                .onItem().transform(s -> concatenateBerlinTimePartialResult(berlinTime, s));
     }
 
     public Uni<BerlinTime> calculateFiveMinutesRow(BerlinTime berlinTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 2))
                 .onItem().transform(this::computeNumberOfLampsInFiveMinutesRow)
                 .onItem().transform(number -> generateFiveMinutesRowPattern(number, 11))
-                .onItem().transform(s -> berlinTime.toBuilder()
-                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
-                        .build());
+                .onItem().transform(s -> concatenateBerlinTimePartialResult(berlinTime, s));
     }
 
     public Uni<BerlinTime> calculateSingleHoursRow(BerlinTime berlinTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 1))
                 .onItem().transform(this::computeNumberOfLampsInSingleHoursRow)
                 .onItem().transform(number -> generateSingleHoursRowPattern(number, 4))
-                .onItem().transform(s -> berlinTime.toBuilder()
-                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
-                        .build());
+                .onItem().transform(s -> concatenateBerlinTimePartialResult(berlinTime, s));
 
     }
 
@@ -77,17 +83,19 @@ public class BerlinClock {
         return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 1))
                 .onItem().transform(this::computeNumberOfLampsInFiveHoursRow)
                 .onItem().transform(number -> generateFiveHoursRowPattern(number, 4))
-                .onItem().transform(s -> berlinTime.toBuilder()
-                        .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + s)
-                        .build());
+                .onItem().transform(s -> concatenateBerlinTimePartialResult(berlinTime, s));
     }
 
     public Uni<BerlinTime> calculateSecondsRow(BerlinTime berlinTime) {
         return Uni.createFrom().item(() -> splitDigitalTime(berlinTime.getDigitalTime(), 3))
                 .onItem().transform(this::generateSecondsRowPattern)
-                .onItem().transform(s -> berlinTime.toBuilder()
-                        .convertedDigitalTime(s)
-                        .build());
+                .onItem().transform(s -> concatenateBerlinTimePartialResult(berlinTime, s));
+    }
+
+    private BerlinTime concatenateBerlinTimePartialResult(BerlinTime berlinTime, String partialSolution){
+        return berlinTime.toBuilder()
+                .convertedDigitalTime(berlinTime.getConvertedDigitalTime() + partialSolution)
+                .build();
     }
 
 
